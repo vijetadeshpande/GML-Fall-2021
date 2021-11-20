@@ -82,14 +82,14 @@ def main(*args, **kwargs):
     
     # following hyperparameters are read as list so that they can be iterated 
     # over for tuning 
-    parser.add_argument('--gnn_depth', default = [3])
-    parser.add_argument('--gnn_hidden_dims', default = [[50, 100, 200]])#[[32], [50], [64], [100], [128]])
+    parser.add_argument('--gnn_depth', default = [1])
+    parser.add_argument('--gnn_hidden_dims', default = [[50]])#[[32], [50], [64], [100], [128]])
     parser.add_argument('--gnn_hidden_dropout', default = [0.03])#[0, 0.01, 0.03, 0.05, 0.1])
-    parser.add_argument('--gnn_neighbor_sample_size', default = [[5, 7, 10]]) #[[5], [7], [10]])
+    parser.add_argument('--gnn_neighbor_sample_size', default = [[5]]) #[[5], [7], [10]])
     parser.add_argument('--lr_start', default = [0.01])#[0.0001, 0.001, 0.003, 0.005, 0.007, 0.009, 0.01, 0.03])
     parser.add_argument('--lr_reduction', default = [0.9])
     parser.add_argument('--lr_reduction_step', default = [10])
-    parser.add_argument('--training_epochs', default = [500])
+    parser.add_argument('--training_epochs', default = [200])
     parser.add_argument('--device', default = torch.device("cuda:0" if torch.cuda.is_available() else "cpu"))
     parser.add_argument('--experiments_repeat', default = False)
     parser.add_argument('--experiments_repeat_number', default = 5)
