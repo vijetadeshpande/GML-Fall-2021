@@ -18,7 +18,31 @@ class ModelData():
                  data_train = None,
                  data_val = None,
                  data_test = None,
-                 bert_feature_dim = 768):
+                 bert_feature_dim = 128):
+        
+        
+    
+        return
+    
+    def data_unsupervised(self, 
+                          data_dir, 
+                          batch_size):
+        
+        # read adjacency matrix
+        
+        
+        # create node batches
+        
+        return 
+    
+    
+    def data_supervised(self,
+                        data_dir, 
+                        batch_size,
+                        data_train,
+                        data_val,
+                        data_test,
+                        node_feature_dim):
         
         # step by step data preprocessing
         # 1. Read the training and testing data
@@ -76,5 +100,5 @@ class ModelData():
         # dimension attributes
         self.input_features, self.output_features = INPUT_DIM, OUTPUT_DIM
         self.batch_size = batch_size
-    
+        
         return

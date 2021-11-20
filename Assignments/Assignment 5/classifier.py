@@ -28,26 +28,26 @@ def main(*args, **kwargs):
     # 
     # path variables
     path_ = os.getcwd()
-    path_data_ = os.path.join(path_, 'data')
+    path_data_ = os.path.join(path_, 'data_ast4')
     path_adj_ = os.path.join(path_data_, 'adj_mat.p')
-    path_bert_ = os.path.join(path_data_, 'bert-base-uncased_node_to_features_300.csv')
+    path_feat_ = os.path.join(path_data_, 'node_embeddings.csv')
     
     # create adj_mat
     if not os.path.exists(path_adj_):
         print('\nCreating adjacency matrix: ')
-        pre_pro.to_adjacency(path_)
+        pre_pro.to_adjacency(path_data_)
         print('DONE')
     
-    # create BERT embeddings
-    if not os.path.exists(path_bert_):
-        print('\nCreating BERT embeddings for nodes: ')
-        pre_pro.node_to_properties(path_)
+    # create node embeddings
+    if not os.path.exists(path_feat_):
+        print('\nCreating embeddings for nodes: ')
+        pre_pro.node_to_embeddings(path_data_)
         print('DONE')
     
     # create train, val and testing set
-    #print('\nCreating training, validation and testing datasets: ')
-    #pre_pro.create_train_test_val(path_)
-    #print('DONE')
+    print('\nCreating training, validation and testing datasets: ')
+    pre_pro.create_train_test_val(path_data_)
+    print('DONE')
     
     # load data
     adj_mat = t_utils_.load_pickle(path_adj_)
