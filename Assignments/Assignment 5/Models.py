@@ -54,7 +54,7 @@ class GSageUnsup(nn.Module):
             
             # layer properties
             name_layer, name_linear, name_act, name_norm, name_drp = 'layer %d'%(layer), 'linear %d'%(layer), 'activation %d'%(layer), 'norm %d'%(layer), 'dropout %d'%(layer)
-            dim_in, dim_out = dim_feature + dim_hidden[layer-1], dim_hidden[layer]
+            dim_in, dim_out = dim_hidden[layer-1] + dim_hidden[layer-1], dim_hidden[layer]
             
             # One block of convolution
             linear_ = (name_linear, nn.Linear(dim_in, dim_out))
@@ -100,7 +100,7 @@ class GSageUnsup(nn.Module):
             
             
             # aggregate the information of neighbors at layer-hop/s
-            aggregated = self.aggregator.aggregate(node_batch, self.depth - (layer-1), layer_pre, self.sample_size[layer-1])
+            aggregated = self.aggregator.aggregate(node_batch, self.depth - (layer-1), layer_pre, self.sample_size[-layer])
             #update_nei['layer %d'%(layer)] = hidden_new
             
             # concatenate and pass through the network
@@ -119,7 +119,7 @@ class GSageUnsup(nn.Module):
             self.hidden[layer].data = new_tensors[layer].data
         
         
-        return self.hidden[layer]
+        return hidden_at_k, self.hidden[layer]
     
 
 class Aggregator():
@@ -289,44 +289,102 @@ class NeighSampler():
 class NNClassifier(nn.Module):
     
     def __init__(self,
-                 num_layers: int,
-                 dim_emb: int,
-                 dim_input: int,
-                 dim_hidden: list,
+                 num_layers_lan: int,
+                 dim_emb_lan: int,
+                 dim_input_lan: int,
+                 dim_hidden_lan: list,
+                 num_layers_graph: int,
+                 dim_emb_graph: int,
+                 dim_input_graph: int,
+                 dim_hidden_graph: list,
                  dim_output: int,
-                 dropout: float):
+                 dropout: float,
+                 node_embeddings_lan: torch.tensor,
+                 node_embeddings_graph: torch.tensor,
+                 device: str,
+                 use_language_embeddings = False):
+        super(NNClassifier, self).__init__()
         
         # save the attributes
-        #self.node_embeddings = node_embeddings
+        self.node_embeddings = {'language': torch.tensor(node_embeddings_lan.values).float().to(device),
+                                'graph': torch.tensor(node_embeddings_graph.values).float().to(device)}
+        self.use_language_embeddings = use_language_embeddings
+        self.device = device
         
-        dim_hidden = [dim_input] + dim_hidden + [dim_output]
-        blocks = []
-        for layer in range(1, num_layers+2, 1):
-            layer_name = 'classifier layer %d'%(layer)
-            
-            # One layer definition
-            linear_ = ('linear', nn.Linear(dim_hidden[layer-1], dim_hidden[layer]))
-            if layer != (num_layers + 2 - 1):
+        #
+        dim_hidden_lan = [dim_input_lan*2] + dim_hidden_lan #+ [dim_output]
+        dim_hidden_graph = [dim_input_graph*2] + dim_hidden_graph
+        
+        #
+        blocks = {'language': [], 'graph': []}
+        
+        if use_language_embeddings:
+            for layer in range(1, num_layers_lan+1, 1):
+                
+                # Layer for processing doc embeddings
+                layer_name = 'language layer %d'%(layer)
+                linear_ = ('linear', nn.Linear(dim_hidden_lan[layer-1], dim_hidden_lan[layer]))
                 activ_ = ('activation', nn.ReLU())
-                norm_ = ('normalization', nn.LayerNorm(dim_hidden[layer]))
+                norm_ = ('normalization', nn.LayerNorm(dim_hidden_lan[layer]))
                 drop_ = ('dropout', nn.Dropout(dropout))
-                block = (layer_name, nn.Sequential(OrderedDict([linear_, activ_, norm_, drop_])))
-            else:
-                activ_ = ('activation', nn.Softmax(dim = -1))
-                block = (layer_name, nn.Sequential(OrderedDict([linear_, activ_])))
+                block_lan = (layer_name, nn.Sequential(OrderedDict([linear_, activ_, norm_, drop_])))
+                
+                #
+                blocks['language'].append(block_lan)
+        
+        for layer in range(1, num_layers_graph+1, 1):
+            # Layer for processing node embeddings
+            layer_name = 'graph layer %d'%(layer)
+            linear_ = ('linear', nn.Linear(dim_hidden_graph[layer-1], dim_hidden_graph[layer]))
+            activ_ = ('activation', nn.ReLU())
+            norm_ = ('normalization', nn.LayerNorm(dim_hidden_graph[layer]))
+            drop_ = ('dropout', nn.Dropout(dropout))
+            block_graph = (layer_name, nn.Sequential(OrderedDict([linear_, activ_, norm_, drop_])))
             
             #
-            blocks.append(block)
-            
+            blocks['graph'].append(block_graph)
+        
+        
         # define the full classifier
-        self.classifier = nn.Sequential(OrderedDict(blocks))
+        self.lin_transform_lan = nn.Sequential(OrderedDict(blocks['language']))
+        self.lin_transform_graph = nn.Sequential(OrderedDict(blocks['graph']))
+        
+        # define last layer for classification
+        dim_input_end = (dim_hidden_lan[-1] + dim_hidden_graph[-1]) if use_language_embeddings else dim_hidden_graph[-1]
+        linear_ = ('linear', nn.Linear(dim_input_end, dim_output))
+        activ_ = ('activation', nn.Softmax(dim = -1))
+        self.classifier = nn.Sequential(OrderedDict([linear_, activ_]))
             
-    
+        
         return
     
-    def forward(self, input_signal):
+    def get_signal(self, node_pairs, emb_type):
         
-        prediction = self.classifier(input_signal)
+        ni_ = self.node_embeddings[emb_type][node_pairs[:, 0].detach().numpy().tolist(), :].float().to(self.device)
+        nj_ = self.node_embeddings[emb_type][node_pairs[:, 1].detach().numpy().tolist(), :].float().to(self.device)
+        signal_ = torch.cat((ni_, nj_), dim = -1).float().to(self.device)
+        
+        return signal_
+    
+    def forward(self, node_pairs):
+        
+        # linear tranformation of graph embeddings
+        sig_graph = self.get_signal(node_pairs, 'graph')
+        sig_graph = self.lin_transform_graph(sig_graph)
+        
+        # linear tranformation of language embeddings
+        if self.use_language_embeddings:
+            sig_lan = self.get_signal(node_pairs, 'language')
+            sig_lan = self.lin_transform_lan(sig_lan)
+            
+            #
+            sig_node_pair = torch.cat((sig_graph, sig_lan), dim = -1).float().to(self.device)
+        
+        else:
+            sig_node_pair = sig_graph
+        
+        #
+        prediction = self.classifier(sig_node_pair)
         
         return prediction
 

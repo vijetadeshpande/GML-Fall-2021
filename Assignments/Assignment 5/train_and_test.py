@@ -20,9 +20,9 @@ import train_utils as t_utils_
 #%%
 def train(model, data, optimizer, criterion, clip, device, task):
     
-    if task == 'unsupervised learning':
+    if task == 'unsupervised_learning':
         loss, acc = train_unsup(model, data, optimizer, criterion, clip, device)
-    elif task == 'supervised learning':
+    elif task == 'supervised_learning':
         loss, acc = train_sup(model, data, optimizer, criterion, clip, device)
     
     return loss, acc
@@ -47,13 +47,13 @@ def train_unsup(model, data, optimizer, criterion, clip, device):
         optimizer.zero_grad()
         
         # forward pass
-        embeddings_ = model(nodes_)
+        batch_emb, all_emb = model(nodes_)
         
         # error calculation
-        loss = criterion(nodes_, embeddings_)
+        loss = criterion(nodes_, batch_emb, all_emb)
         
         # backprop
-        loss.backward()
+        loss.backward(retain_graph = True)
 
         # gradient clipping
         torch.nn.utils.clip_grad_norm_(model.parameters(), clip)
@@ -77,8 +77,6 @@ def train_unsup(model, data, optimizer, criterion, clip, device):
     epoch_acc = epoch_acc / len(data)
     
     return epoch_loss, epoch_acc
-
-#%%
     
 def train_sup(model, data, optimizer, criterion, clip, device):
     
@@ -92,7 +90,7 @@ def train_sup(model, data, optimizer, criterion, clip, device):
         idx += 1
         
         # extract source and target
-        nodes_ = list(map(int, batch[0].tolist()))#
+        nodes_ = batch[0]#
         trgs_ = batch[1].long()#.detach()#
         
         # reset gradient
@@ -132,7 +130,18 @@ def train_sup(model, data, optimizer, criterion, clip, device):
 
 
 #%%
-def evaluate(model, data, criterion, device, teacher_forcing_ratio = 0, ignore_error:bool = False):
+
+def evaluate(model, data, criterion, device, task, teacher_forcing_ratio = 0, ignore_error:bool = False):
+    
+    if task == 'unsupervised_learning':
+        loss, acc, all_met = evaluate_unsup(model, data, criterion, device)
+    elif task == 'supervised_learning':
+        loss, acc, all_met = evaluate_sup(model, data, criterion, device, ignore_error)
+    
+    return loss, acc, all_met
+
+
+def evaluate_unsup(model, data, criterion, device):
     
     
     # initialize
@@ -143,6 +152,41 @@ def evaluate(model, data, criterion, device, teacher_forcing_ratio = 0, ignore_e
 
             # access the source and target sequence
             nodes_ = list(map(int, batch[0].tolist()))#
+            trgs_ = batch[1].long().detach()#
+            
+            # forward pass
+            batch_emb, all_emb = model(nodes_)
+            
+            # error calculation
+            loss = criterion(nodes_, batch_emb, all_emb)         
+            
+            # update error
+            epoch_loss += loss.item()
+            
+            # TODO: do we need to update variables during testing or not?
+            
+            # calculate other evaluation metics
+            #epoch_acc += EvalMetrics().__accuracy__(torch.argmax(prediction.clone(), dim = -1).detach().numpy(), trgs_.detach().numpy())
+            
+    # return a dictionary
+    epoch_loss = epoch_loss/len(data)
+    epoch_acc = epoch_acc / len(data)
+    all_metrics = {'average epoch loss': epoch_loss}
+            
+    return epoch_loss, epoch_acc, all_metrics    
+
+
+def evaluate_sup(model, data, criterion, device, ignore_error):
+    
+    
+    # initialize
+    model.eval()
+    epoch_loss, epoch_acc = 0, 0       
+    with torch.no_grad():
+        for batch in data:
+
+            # access the source and target sequence
+            nodes_ = batch[0]#
             trgs_ = batch[1].long().detach()#
             
             # forward pass
@@ -173,30 +217,31 @@ def inference(model, data, device, path_ref = r'/Users/vijetadeshpande/Documents
     
     # initialize
     model.eval()
-    node_list, pred_class_list = [], []    
+    ni, nj, link = [], [] , []   
     
     # load reference files for converting node_idx to title and class_idx to name
-    ref_ntot = pd.read_csv(os.path.join(path_ref, 'titles.txt'), sep = 'delimiter', header = None, engine = 'python').loc[:, 0].str.split(" ", 1, expand = True)
-    ref_cton = pd.read_csv(os.path.join(path_ref, 'categories.txt'), sep = ' ', header = None)
+    #ref_ntot = pd.read_csv(os.path.join(path_ref, 'titles.txt'), sep = 'delimiter', header = None, engine = 'python').loc[:, 0].str.split(" ", 1, expand = True)
+    #ref_cton = pd.read_csv(os.path.join(path_ref, 'categories.txt'), sep = ' ', header = None)
     
     with torch.no_grad():
         for batch in data:
 
             # access the source and target sequence
-            nodes_ = list(map(int, batch[0].tolist()))
+            nodes_ = batch[0]
             
             # forward pass
             predictions = model(nodes_)
             
             # append
-            node_list += nodes_
-            pred_class_list += torch.argmax(predictions.clone(), dim = -1).detach().numpy().tolist()
+            ni += nodes_.detach().numpy()[:, 0].tolist()
+            nj += nodes_.detach().numpy()[:, 1].tolist()
+            link += torch.argmax(predictions.clone(), dim = -1).detach().numpy().tolist()
     
     #
-    node_pred = pd.DataFrame(0, index = np.arange(len(node_list)), columns = ['node', 'node title', 'predicted class', 'predicted class name'])
-    node_pred.loc[:, 'node'] = node_list
-    node_pred.loc[:, 'node title'] = t_utils_.node_to_title(ref_ntot, node_list)
-    node_pred.loc[:, 'predicted class'] = pred_class_list
-    node_pred.loc[:, 'predicted class name'] = t_utils_.class_to_name(ref_cton, pred_class_list)
-    
+    node_pred = pd.DataFrame(0, index = np.arange(len(ni)), columns = ['ni', 'nj', 'link'])
+    node_pred.loc[:, 'ni'] = ni
+    node_pred.loc[:, 'nj'] = nj
+    node_pred.loc[:, 'link'] = link
+
+
     return node_pred

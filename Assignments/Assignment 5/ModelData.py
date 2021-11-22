@@ -14,35 +14,13 @@ import train_utils as t_utils
 class ModelData():
     
     def __init__(self, data_dir:str, 
+                 task: str,
                  batch_size:int = 32,
-                 data_train = None,
-                 data_val = None,
-                 data_test = None,
-                 bert_feature_dim = 128):
-        
-        
+                 filename_train = None,
+                 filename_val = None,
+                 filename_test = None,
+                 node_feature_dim = 128):
     
-        return
-    
-    def data_unsupervised(self, 
-                          data_dir, 
-                          batch_size):
-        
-        # read adjacency matrix
-        
-        
-        # create node batches
-        
-        return 
-    
-    
-    def data_supervised(self,
-                        data_dir, 
-                        batch_size,
-                        data_train,
-                        data_val,
-                        data_test,
-                        node_feature_dim):
         
         # step by step data preprocessing
         # 1. Read the training and testing data
@@ -52,17 +30,12 @@ class ModelData():
         
         # STEP - 1: read data
         try:
-            data_train = pd.read_csv(data_train, sep = ' ', header = None)
-            data_test = pd.read_csv(data_test, sep = ' ', header = None)
-            data_val = pd.read_csv(data_val, sep = ' ', header = None)
+            data_train = pd.read_csv(filename_train).iloc[:, 1:]#, sep = ' ', header = None)
+            data_test = pd.read_csv(filename_test).iloc[:, 1:]#, sep = ' ', header = None)
+            data_val = pd.read_csv(filename_val).iloc[:, 1:]#, sep = ' ', header = None)
         except:
-            try:
-                data_train = pd.read_csv(os.path.join(data_dir, 'train.txt'), sep = ' ', header = None)
-                data_test = pd.read_csv(os.path.join(data_dir, 'test.txt'), sep = ' ', header = None)
-                data_val = pd.read_csv(os.path.join(data_dir, 'val.txt'), sep = ' ', header = None)
-            except:
-                print('\nNO DATA FILE FOUND')
-                return
+            print('\n---------------------NO DATA FILE FOUND----------------------')
+            return
     
         #
         assert type(data_train) == pd.DataFrame
@@ -71,12 +44,21 @@ class ModelData():
         
         
         # STEP - 2: create numpy array of required shape and convert them into torch tensors
-        X_train, Y_train = torch.FloatTensor(data_train.iloc[:, 0].values), torch.FloatTensor(data_train.iloc[:, -1].values)
-        X_test, Y_test = torch.FloatTensor(data_test.iloc[:, 0].values), torch.FloatTensor(data_test.iloc[:, -1].values)
-        X_val, Y_val = torch.FloatTensor(data_val.iloc[:, 0].values), torch.FloatTensor(data_val.iloc[:, -1].values)
+        if task == 'unsupervised_learning':
+            X_train, Y_train = torch.FloatTensor(data_train.iloc[:, 0].values), torch.FloatTensor(data_train.iloc[:, -1].values)
+            X_test, Y_test = torch.FloatTensor(data_test.iloc[:, 0].values), torch.FloatTensor(data_test.iloc[:, -1].values)
+            X_val, Y_val = torch.FloatTensor(data_val.iloc[:, 0].values), torch.FloatTensor(data_val.iloc[:, -1].values)
+        
+        else:
+            
+            X_train, Y_train = torch.tensor(data_train.iloc[:, :2].values).long(), torch.tensor(data_train.iloc[:, -1].values).long()
+            X_test, Y_test = torch.tensor(data_test.iloc[:, :2].values).long(), torch.tensor(data_test.iloc[:, -1].values).long()
+            X_val, Y_val = torch.tensor(data_val.iloc[:, :2].values).long(), torch.tensor(data_val.iloc[:, -1].values).long()
+            
+        
         
         # 
-        INPUT_DIM, OUTPUT_DIM = bert_feature_dim, 26#len(set(data_train.loc[:, 1].unique().values.tolist()).union(set(data_val.loc[:, 1].unique().values.tolist())))
+        INPUT_DIM, OUTPUT_DIM = node_feature_dim, 2#len(set(data_train.loc[:, 1].unique().values.tolist()).union(set(data_val.loc[:, 1].unique().values.tolist())))
         
         # STEP - 3: create tuples
         train, test, val = [], [], []

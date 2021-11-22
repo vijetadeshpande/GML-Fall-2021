@@ -45,8 +45,8 @@ def print_model_structure(model):
     print('\n\nGraphSage model structure is as follows:')
     print(model.graph_network)
     
-    print('\n\nClassifier structure is as follows:')
-    print(model.classifier)
+    #print('\n\nClassifier structure is as follows:')
+    #print(model.classifier)
     
     return 
 
@@ -76,7 +76,7 @@ def print_train_progress(epoch, epoch_n, loss_train, acc_train, loss_val, acc_va
     
     epoch_mins, epoch_secs = epoch_time(start_time, end_time)
     
-    if epoch == (epoch_n - 1):
+    if True:#epoch == (epoch_n - 1):
         try:
             
             print(f'\nEpoch: {epoch+1:02} | Time: {epoch_mins}m {epoch_secs}s')
@@ -208,7 +208,7 @@ def write_predictions(results, filename_):
     except:
         pass
     
-    results['results']['inference'].loc[:, ['node', 'predicted class']].to_csv(filename_, header=None, index=None, sep=' ', mode='a')
+    results['results']['inference'].loc[:, ['ni', 'nj', 'link']].to_csv(filename_, header=None, index=None, sep=' ', mode='a')
     
     return
 

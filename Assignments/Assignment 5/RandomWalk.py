@@ -111,7 +111,7 @@ class RandWalk():
     def create_sample_set(self, adj_mat):
         
         # TODO: need to create a generalizable list for node tags
-        nodes = np.arange(adj_mat.shape[0])
+        nodes = np.arange(np.array(adj_mat).shape[0])
         
         #
         sample_set = {}

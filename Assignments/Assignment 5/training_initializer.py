@@ -25,14 +25,22 @@ def main(parameter_dict):
     
     # some required parameters
     device = parameter_dict['device']
-    depth = parameter_dict['GSage depth']
     data = parameter_dict['data']
-    epochs = parameter_dict['epochs']
-    model_filename = parameter_dict['model filename']
+    model_filename = parameter_dict['model_filename']
     clip = 1
     
+    if parameter_dict['ML_TASK'] == 'unsupervised_learning':
+        epochs = parameter_dict['training_epochs']
+    else:
+        epochs = parameter_dict['classifier_training_epochs']
+    
+    try:
+        depth = parameter_dict['gnn_depth']
+    except:
+        depth = 0
+    
     #
-    __task__ = parameter_dict['task']
+    __task__ = parameter_dict['ML_TASK']
     
     #%% UN_SUPERVISED NODE EMBEDDING DEVELOPMENT
     
@@ -46,7 +54,7 @@ def main(parameter_dict):
     obj_f = get_objective_function(parameter_dict, __task__)
     
     # define solution method
-    model, sol_m, sch_lr = get_solution_method(parameter_dict, model)
+    model, sol_m, sch_lr = get_solution_method(parameter_dict, model, __task__)
     
     # start training
     losses_train, losses_val = [], []
@@ -59,8 +67,8 @@ def main(parameter_dict):
         time_start = time.time()
         
         # train the model
-        loss_train, acc_train = train(model, data_train, sol_m, obj_f, clip, device)
-        loss_val, acc_val, _ = evaluate(model, data_val, obj_f, device)
+        loss_train, acc_train = train(model, data_train, sol_m, obj_f, clip, device, __task__)
+        loss_val, acc_val, _ = evaluate(model, data_val, obj_f, device, __task__)
         
         time_end = time.time()
         
@@ -93,11 +101,11 @@ def main(parameter_dict):
         print('Failed to load the saved model. Proceeding with the model available in last epoch.')
     
     # get final embeddings
-    node_embeddings, ij_link = None, None
-    if __task__ == 'unsupervised learning':
+    node_embeddings, all_embeddings, ij_link = [], [], []
+    if __task__ == 'unsupervised_learning':
         all_embeddings = model.hidden
         node_embeddings = model.hidden['layer %d'%(depth)]#inference(GNN_model, data_test, device)
-    elif __task__ == 'supervised learning':
+    elif __task__ == 'supervised_learning':
         ij_link = inference(model, data_test, device)
     
     return {'train losses': losses_train,
@@ -120,24 +128,34 @@ def main(parameter_dict):
 def get_model(parameter_dict, task):
     
     # define and initialize model
-    if task == 'unsupervised learning':
-        model = GSUn(parameter_dict['adjacency matrix'],
-                     parameter_dict['node feature mat'],
-                     parameter_dict['GSage depth'],
-                     parameter_dict['GSage input layer size'],
-                     parameter_dict['GSage hidden layer size'],
-                     parameter_dict['GSage output layer size'],
-                     parameter_dict['GSage dropout'],
+    if task == 'unsupervised_learning':
+        model = GSUn(parameter_dict['adjacency_matrix'],
+                     parameter_dict['node_feature_vectors'],
+                     parameter_dict['gnn_depth'],
+                     parameter_dict['gnn_input_layer_size'],
+                     parameter_dict['gnn_hidden_layer_size'],
+                     parameter_dict['gnn_output_layer_size'],
+                     parameter_dict['gnn_hidden_layer_dropout'],
                      parameter_dict['device'],
-                     parameter_dict['GSage aggregator'],
-                     parameter_dict['GSage neighborhood sample size'])
-    elif task == 'supervised learning':
-        model = NNCls(parameter_dict['classifier layers'],
-                 parameter_dict['node feature dim'],
-                 parameter_dict['classifier input layer size'],
-                 parameter_dict['classifier hidden layer size'],
-                 parameter_dict['classifier output layer size'],
-                 parameter_dict['classifier dropout'])
+                     parameter_dict['gnn_aggregator'],
+                     parameter_dict['gnn_neighborhood_sample_size'])
+    elif task == 'supervised_learning':
+        model = NNCls(parameter_dict['classifier_layers_lan'],
+                      parameter_dict['classifier_input_layer_size_lan'],
+                      parameter_dict['classifier_input_layer_size_lan'],
+                      parameter_dict['classifier_hidden_layer_size_lan'],
+                      #
+                      parameter_dict['classifier_layers_graph'],
+                      parameter_dict['classifier_input_layer_size_graph'],
+                      parameter_dict['classifier_input_layer_size_graph'],
+                      parameter_dict['classifier_hidden_layer_size_graph'],
+                      #
+                      parameter_dict['classifier_output_layer_size'],
+                      parameter_dict['classifier_hidden_layer_dropout_graph'],
+                      parameter_dict['node_feature_vectors'],
+                      parameter_dict['node_embeddings_graph'],
+                      parameter_dict['device'],
+                      parameter_dict['classifier_use_language_embeddings'])
     
     #
     model = utils_.init_parameters(model)
@@ -147,19 +165,20 @@ def get_model(parameter_dict, task):
     _ = utils_.count_params(model)
     
     # print model structure
-    utils_.print_model_structure(model)
+    #utils_.print_model_structure(model)
         
     return model
 
 def get_objective_function(parameter_dict, task):
     
-    if task == 'unsupervised learning':
-        objective_f = UnsupLoss(parameter_dict['adjacency matrix'],
+    if task == 'unsupervised_learning':
+        objective_f = UnsupLoss(parameter_dict['adjacency_matrix'],
+                                parameter_dict['path_data_'],
                                 parameter_dict['device'],
-                                parameter_dict['GSage unsupervised random walk length'],
-                                parameter_dict['GSage unsupervised positive sample size'],
-                                parameter_dict['GSage unsupervised negative sample size'])
-    elif task == 'supervised learning':
+                                parameter_dict['gnn_unsupervised_random_walk_length'],
+                                parameter_dict['gnn_unsupervised_positive_sample_size'],
+                                parameter_dict['gnn_unsupervised_negative_sample_size'])
+    elif task == 'supervised_learning':
         objective_f = nn.CrossEntropyLoss()
     
     #
@@ -169,16 +188,14 @@ def get_objective_function(parameter_dict, task):
 
 def get_solution_method(parameter_dict, model_, task):
     
-    if task == 'unsupervised learning':
-        l_rate = parameter_dict['GSage learning rate']
-        l_rate_red = parameter_dict['GSage learning rate reduction']
-        l_rate_red_step = parameter_dict['GSage learning rate reduction step']
-    elif task == 'supervised learning':
-        l_rate = parameter_dict['classifier learning rate']
-        l_rate_red = parameter_dict['classifier learning rate reduction']
-        l_rate_red_step = parameter_dict['classifier learning rate reduction step']
-        
-    
+    if task == 'unsupervised_learning':
+        l_rate = parameter_dict['gnn_lr_start']
+        l_rate_red = parameter_dict['gnn_lr_reduction']
+        l_rate_red_step = parameter_dict['gnn_lr_reduction_step']
+    elif task == 'supervised_learning':
+        l_rate = parameter_dict['classifier_lr_start']
+        l_rate_red = parameter_dict['classifier_lr_reduction']
+        l_rate_red_step = parameter_dict['classifier_lr_reduction_step']
     
     # solution method
     solution_m = optim.Adam(model_.parameters(), lr = l_rate)
