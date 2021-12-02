@@ -73,7 +73,7 @@ def main(parameter_dict):
         time_end = time.time()
         
         # print progress
-        #utils_.print_train_progress(epoch, epochs, loss_train, acc_train, loss_val, acc_val, time_start, time_end)
+        utils_.print_train_progress(epoch, epochs, loss_train, acc_train, loss_val, acc_val, time_start, time_end)
         
         # save losses
         losses_train.append(loss_train)
@@ -155,7 +155,8 @@ def get_model(parameter_dict, task):
                       parameter_dict['node_feature_vectors'],
                       parameter_dict['node_embeddings_graph'],
                       parameter_dict['device'],
-                      parameter_dict['classifier_use_language_embeddings'])
+                      parameter_dict['classifier_use_language_embeddings'],
+                      parameter_dict['classifier_use_graph_embeddings'])
     
     #
     model = utils_.init_parameters(model)

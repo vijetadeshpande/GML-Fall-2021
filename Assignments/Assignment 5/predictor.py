@@ -107,8 +107,9 @@ def main(*args, **kwargs):
     
     
     # Classifier for link classification task
-    parser.add_argument('--classifier_batch_size', default = 32)
+    parser.add_argument('--classifier_batch_size', default = 64)
     parser.add_argument('--classifier_use_language_embeddings', default = [True])
+    parser.add_argument('--classifier_use_graph_embeddings', default = [True])
     parser.add_argument('--classifier_layers_lan', default = [2])
     parser.add_argument('--classifier_input_layer_size_lan', default = [128])
     parser.add_argument('--classifier_hidden_layer_size_lan', default = [[64, 32]])#[[32], [50], [64], [100], [128]])

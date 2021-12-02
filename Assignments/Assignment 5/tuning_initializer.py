@@ -108,7 +108,7 @@ def main(*args):
                         
                         'classifier_batch_size': args[0].classifier_batch_size,
                         'classifier_use_language_embeddings': par['classifier_use_language_embeddings'],
-                        
+                        'classifier_use_graph_embeddings': par['classifier_use_graph_embeddings'],
                         
                         'classifier_layers_lan': par['classifier_layers_lan'],
                         'classifier_input_layer_size_lan': par['classifier_input_layer_size_lan'],
@@ -194,6 +194,7 @@ def get_hyperpar_set_list(*args):
     
     elif args[0].ML_TASK == 'supervised_learning':
         hp_set_list = product_dict(classifier_use_language_embeddings = args[0].classifier_use_language_embeddings,
+                                   classifier_use_graph_embeddings = args[0].classifier_use_graph_embeddings,
                                
                                    classifier_layers_lan = args[0].classifier_layers_lan,
                                    classifier_input_layer_size_lan = args[0].classifier_input_layer_size_lan,

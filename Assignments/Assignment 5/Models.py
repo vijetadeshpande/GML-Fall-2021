@@ -302,13 +302,19 @@ class NNClassifier(nn.Module):
                  node_embeddings_lan: torch.tensor,
                  node_embeddings_graph: torch.tensor,
                  device: str,
-                 use_language_embeddings = False):
+                 use_language_embeddings = False,
+                 use_graph_embeddings = True):
         super(NNClassifier, self).__init__()
+        
+        # 
+        if not (use_language_embeddings or use_graph_embeddings):
+            use_graph_embeddings = True
         
         # save the attributes
         self.node_embeddings = {'language': torch.tensor(node_embeddings_lan.values).float().to(device),
                                 'graph': torch.tensor(node_embeddings_graph.values).float().to(device)}
         self.use_language_embeddings = use_language_embeddings
+        self.use_graph_embeddings = use_graph_embeddings
         self.device = device
         
         #
@@ -332,25 +338,33 @@ class NNClassifier(nn.Module):
                 #
                 blocks['language'].append(block_lan)
         
-        for layer in range(1, num_layers_graph+1, 1):
-            # Layer for processing node embeddings
-            layer_name = 'graph layer %d'%(layer)
-            linear_ = ('linear', nn.Linear(dim_hidden_graph[layer-1], dim_hidden_graph[layer]))
-            activ_ = ('activation', nn.ReLU())
-            norm_ = ('normalization', nn.LayerNorm(dim_hidden_graph[layer]))
-            drop_ = ('dropout', nn.Dropout(dropout))
-            block_graph = (layer_name, nn.Sequential(OrderedDict([linear_, activ_, norm_, drop_])))
-            
-            #
-            blocks['graph'].append(block_graph)
+        if use_graph_embeddings:
+            for layer in range(1, num_layers_graph+1, 1):
+                # Layer for processing node embeddings
+                layer_name = 'graph layer %d'%(layer)
+                linear_ = ('linear', nn.Linear(dim_hidden_graph[layer-1], dim_hidden_graph[layer]))
+                activ_ = ('activation', nn.ReLU())
+                norm_ = ('normalization', nn.LayerNorm(dim_hidden_graph[layer]))
+                drop_ = ('dropout', nn.Dropout(dropout))
+                block_graph = (layer_name, nn.Sequential(OrderedDict([linear_, activ_, norm_, drop_])))
+                
+                #
+                blocks['graph'].append(block_graph)
         
         
-        # define the full classifier
-        self.lin_transform_lan = nn.Sequential(OrderedDict(blocks['language']))
-        self.lin_transform_graph = nn.Sequential(OrderedDict(blocks['graph']))
+        # define linear transformation layers
+        self.lin_transform = nn.ModuleDict({
+                'language': nn.Sequential(OrderedDict(blocks['language'])),
+                'graph': nn.Sequential(OrderedDict(blocks['graph']))
+                })
         
         # define last layer for classification
-        dim_input_end = (dim_hidden_lan[-1] + dim_hidden_graph[-1]) if use_language_embeddings else dim_hidden_graph[-1]
+        if use_language_embeddings and use_graph_embeddings:
+            dim_input_end = dim_hidden_lan[-1] + dim_hidden_graph[-1]
+        elif use_language_embeddings and (not use_graph_embeddings):
+            dim_input_end = dim_hidden_lan[-1]
+        else:
+            dim_input_end = dim_hidden_graph[-1]
         linear_ = ('linear', nn.Linear(dim_input_end, dim_output))
         activ_ = ('activation', nn.Softmax(dim = -1))
         self.classifier = nn.Sequential(OrderedDict([linear_, activ_]))
@@ -369,17 +383,20 @@ class NNClassifier(nn.Module):
     def forward(self, node_pairs):
         
         # linear tranformation of graph embeddings
-        sig_graph = self.get_signal(node_pairs, 'graph')
-        sig_graph = self.lin_transform_graph(sig_graph)
+        if self.use_graph_embeddings:
+            sig_graph = self.get_signal(node_pairs, 'graph')
+            sig_graph = self.lin_transform['graph'](sig_graph)
         
         # linear tranformation of language embeddings
         if self.use_language_embeddings:
             sig_lan = self.get_signal(node_pairs, 'language')
-            sig_lan = self.lin_transform_lan(sig_lan)
+            sig_lan = self.lin_transform['language'](sig_lan)
             
-            #
+        #
+        if self.use_graph_embeddings and self.use_language_embeddings:
             sig_node_pair = torch.cat((sig_graph, sig_lan), dim = -1).float().to(self.device)
-        
+        elif self.use_language_embeddings:
+            sig_node_pair = sig_lan        
         else:
             sig_node_pair = sig_graph
         
