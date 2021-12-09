@@ -199,6 +199,11 @@ def create_train_test_val(path_, negative_sample_size = 5):
         data_train_neg.loc[idx:idx+negative_sample_size-1, 'link'] = 0
         
         idx += negative_sample_size
+    # add difficult negative examples
+    neg_diff = pd.DataFrame(0, index = data_train_pos.index, columns = data_train_pos.columns)
+    neg_diff.loc[:, 'ni'] = data_train_pos.loc[:, 'nj'].values
+    neg_diff.loc[:, 'nj'] = data_train_pos.loc[:, 'ni'].values
+    data_train_neg = pd.concat([data_train_neg, neg_diff])
     
     # join dataframes and shuffle
     data_train = pd.concat([data_train_pos, data_train_neg]).sample(frac=1).reset_index(drop=True)
@@ -238,7 +243,7 @@ def create_train_test_val(path_, negative_sample_size = 5):
 # test
     
 ##
-#dir_ = r'/Users/vijetadeshpande/Documents/GitHub/GraphML-Fall-2021/Assignments/Assignment 4/data'
+#dir_ = r'/Users/vijetadeshpande/Documents/GitHub/GML-Fall-2021/Assignments/Assignment 5/data_ast4'
 #to_adjacency(dir_)
 #node_to_properties(dir_)
 #data = pd.read_csv(os.path.join('data', 'bert-base-uncased_node_to_features.csv'))

@@ -107,9 +107,9 @@ def main(*args, **kwargs):
     
     
     # Classifier for link classification task
-    parser.add_argument('--classifier_batch_size', default = 64)
+    parser.add_argument('--classifier_batch_size', default = 32)
     parser.add_argument('--classifier_use_language_embeddings', default = [True])
-    parser.add_argument('--classifier_use_graph_embeddings', default = [True])
+    parser.add_argument('--classifier_use_graph_embeddings', default = [False])
     parser.add_argument('--classifier_layers_lan', default = [2])
     parser.add_argument('--classifier_input_layer_size_lan', default = [128])
     parser.add_argument('--classifier_hidden_layer_size_lan', default = [[64, 32]])#[[32], [50], [64], [100], [128]])
@@ -120,10 +120,10 @@ def main(*args, **kwargs):
     parser.add_argument('--classifier_hidden_layer_size_graph', default = [[64, 32]])#[[32], [50], [64], [100], [128]])
     parser.add_argument('--classifier_hidden_layer_dropout_graph', default = [0.01])#[0, 0.01, 0.03, 0.05, 0.1])
     
-    parser.add_argument('--classifier_output_layer_size', default = 2)
-    parser.add_argument('--classifier_lr_start', default = [0.001])#[0.0001, 0.001, 0.003, 0.005, 0.007, 0.009, 0.01, 0.03])
-    parser.add_argument('--classifier_lr_reduction', default = [0.9])
-    parser.add_argument('--classifier_lr_reduction_step', default = [10])
+    parser.add_argument('--classifier_output_layer_size', default = 1)
+    parser.add_argument('--classifier_lr_start', default = [0.0001])#[0.0001, 0.001, 0.003, 0.005, 0.007, 0.009, 0.01, 0.03])
+    parser.add_argument('--classifier_lr_reduction', default = [0.5])
+    parser.add_argument('--classifier_lr_reduction_step', default = [4])
     parser.add_argument('--classifier_training_epochs', default = [30])
     parser.add_argument('--classifier_node_embeddings_graph', default = node_emb_graph)
     
@@ -140,19 +140,19 @@ def main(*args, **kwargs):
     args_, unknown_ = parser.parse_known_args()
     
     #
-    hpt__init__.main(args_)
+    best_ = hpt__init__.main(args_)
     
     # initialize supervised learning of the classifier
     if args_.ML_TASK == 'unsupervised_learning':
         args_.ML_TASK = 'supervised_learning'
-        hpt__init__.main(args_)
+        best_ = hpt__init__.main(args_)
     
     #
     
-    return
+    return best_
 
 
 if __name__ == '__main__':
     #main(sys.argv[1:])
     #main(('network.txt', 'categories.txt', 'titles.txt', 'train.txt', 'val.txt', 'test.txt'))
-    main(('data/'))
+    best_res = main(('data/'))

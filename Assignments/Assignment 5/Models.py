@@ -318,8 +318,8 @@ class NNClassifier(nn.Module):
         self.device = device
         
         #
-        dim_hidden_lan = [dim_input_lan*2] + dim_hidden_lan #+ [dim_output]
-        dim_hidden_graph = [dim_input_graph*2] + dim_hidden_graph
+        dim_hidden_lan = [dim_input_lan*2 + 1] + dim_hidden_lan #+ [dim_output]
+        dim_hidden_graph = [dim_input_graph*2 + 1] + dim_hidden_graph
         
         #
         blocks = {'language': [], 'graph': []}
@@ -366,7 +366,8 @@ class NNClassifier(nn.Module):
         else:
             dim_input_end = dim_hidden_graph[-1]
         linear_ = ('linear', nn.Linear(dim_input_end, dim_output))
-        activ_ = ('activation', nn.Softmax(dim = -1))
+        #activ_ = ('activation', nn.Softmax(dim = -1))
+        activ_ = ('activation', nn.Sigmoid())
         self.classifier = nn.Sequential(OrderedDict([linear_, activ_]))
             
         
@@ -376,7 +377,8 @@ class NNClassifier(nn.Module):
         
         ni_ = self.node_embeddings[emb_type][node_pairs[:, 0].detach().numpy().tolist(), :].float().to(self.device)
         nj_ = self.node_embeddings[emb_type][node_pairs[:, 1].detach().numpy().tolist(), :].float().to(self.device)
-        signal_ = torch.cat((ni_, nj_), dim = -1).float().to(self.device)
+        sim_ = torch.diagonal(torch.matmul(ni_, torch.transpose(nj_, 0, 1))).unsqueeze(1).to(self.device)
+        signal_ = torch.cat((ni_, nj_, sim_), dim = -1).float().to(self.device)
         
         return signal_
     

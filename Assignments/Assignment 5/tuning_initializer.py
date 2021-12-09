@@ -157,7 +157,7 @@ def main(*args):
         t_utils_.write_predictions(result_best, os.path.join(args[0].path_, 'predictions.txt'))
     
     
-    return
+    return result_best
 
 def product_dict(**kwargs):
     

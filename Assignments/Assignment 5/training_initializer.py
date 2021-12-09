@@ -66,6 +66,10 @@ def main(parameter_dict):
     for epoch in tqdm(range(epochs), position=0, leave=True):
         time_start = time.time()
         
+        #
+        if epoch == (epochs - 1):
+            print('')
+        
         # train the model
         loss_train, acc_train = train(model, data_train, sol_m, obj_f, clip, device, __task__)
         loss_val, acc_val, _ = evaluate(model, data_val, obj_f, device, __task__)
@@ -102,10 +106,12 @@ def main(parameter_dict):
     
     # get final embeddings
     node_embeddings, all_embeddings, ij_link = [], [], []
+    all_met = None
     if __task__ == 'unsupervised_learning':
         all_embeddings = model.hidden
         node_embeddings = model.hidden['layer %d'%(depth)]#inference(GNN_model, data_test, device)
     elif __task__ == 'supervised_learning':
+        loss_val, acc_val, all_met = evaluate(model, data_val, obj_f, device, __task__)
         ij_link = inference(model, data_test, device)
     
     return {'train losses': losses_train,
@@ -121,7 +127,8 @@ def main(parameter_dict):
             'model state dict': model_state_dict,
             'model filename': model_filename,
             'all embeddings': all_embeddings,
-            'node embeddings': node_embeddings}
+            'node embeddings': node_embeddings,
+            'evaluation metrics': all_met}
 
 #%% SOME HELPER FUNCTION
 
@@ -180,7 +187,8 @@ def get_objective_function(parameter_dict, task):
                                 parameter_dict['gnn_unsupervised_positive_sample_size'],
                                 parameter_dict['gnn_unsupervised_negative_sample_size'])
     elif task == 'supervised_learning':
-        objective_f = nn.CrossEntropyLoss()
+        #objective_f = nn.CrossEntropyLoss()
+        objective_f = nn.BCELoss()
     
     #
     objective_f = objective_f.to(parameter_dict['device'])

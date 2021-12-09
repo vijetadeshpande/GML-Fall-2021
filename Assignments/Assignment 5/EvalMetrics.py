@@ -23,4 +23,20 @@ class EvalMetrics():
         
         acc = sum(pred == trg)/(len(pred))
         
-        return acc
+        # check
+        other_met = {}
+        other_met['false negative'] = sum(pred[pred == 0] != trg[pred == 0])/(len(pred))
+        other_met['true negative'] = sum(pred[pred == 0] == trg[pred == 0])/(len(pred))
+        other_met['false positive'] = sum(pred[pred == 1] != trg[pred == 1])/(len(pred))
+        other_met['true positive'] = sum(pred[pred == 1] == trg[pred == 1])/(len(pred))
+        
+        #true_labels_for_correct_pred = trg[pred == trg]
+        #true_labels_for_incorect_pred = trg[pred != trg]
+        #percent_link_correct_pred = sum(true_labels_for_correct_pred)/len(true_labels_for_correct_pred)
+        #if len(true_labels_for_incorect_pred) > 0:
+        #    percent_link_incorrect_pred = sum(true_labels_for_incorect_pred)/len(true_labels_for_incorect_pred)
+        #else:
+        #    percent_link_incorrect_pred = 0
+            
+
+        return acc, other_met

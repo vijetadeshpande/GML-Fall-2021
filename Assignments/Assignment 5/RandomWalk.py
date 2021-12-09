@@ -72,6 +72,8 @@ class RandWalk():
     
     def get_negative_samples(self, nodes, adj_mat):
         
+        
+        
         # create netx graph from adj_mat
         G = nx.from_numpy_matrix(adj_mat, create_using = nx.DiGraph)
         
@@ -89,19 +91,6 @@ class RandWalk():
             #
             max_c = max(max_c, len(not_reachable))
             min_c = min(min_c, len(not_reachable))
-            
-            """
-            if len(not_reachable) == 0:
-                _, nodes_far_away = self.bfs_(set([node]), adj_mat, self.walk_len + 2)
-                start_, end_ = len(not_reachable), len(not_reachable) + len(nodes_far_away)
-                sample_set[node, start_:end_] = list(nodes_far_away)
-                
-                #
-                _, nodes_far_away = self.bfs_(set([node]), adj_mat, self.walk_len + 1)
-                start_ = end_
-                end_ = start_ + len(nodes_far_away)
-                sample_set[node, start_:end_] = list(nodes_far_away)
-            """
             
         #
         #sample_set = sample_set[:, max_c]
