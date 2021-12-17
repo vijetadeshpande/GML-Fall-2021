@@ -76,6 +76,11 @@ plt.figure()
 sns.histplot(data = ddi_type, x = 'Number of side-effects associated with a pair of drugs')
 plt.savefig('Side-effect_distribution.png')
 
+for i in stitch2se:
+    print(i)
+    print(stitch2se[i])
+    print('\n')
+
 # =============================================================================
 # DRUG-PROTEIN GRAPH
 # =============================================================================
@@ -104,7 +109,8 @@ for i in ddi_type.index:
         overlaps.append(overlap_percentage)
 overlap_df = pd.DataFrame(0, index = np.arange(len(overlaps)), columns = ['x', 'Target protein overlap percentage for pair of drugs'])
 overlap_df['Target protein overlap percentage for pair of drugs'] = overlaps
+overlap_df['Target protein overlap percentage for pair of drugs'].describe()
 plt.figure()
-sns.histplot(data = ddi_type, x = 'Target protein overlap percentage for pair of drugs')
+sns.histplot(data = overlap_df, x = 'Target protein overlap percentage for pair of drugs', kde = True)
 plt.savefig('target_protein_overlap.png')
 
