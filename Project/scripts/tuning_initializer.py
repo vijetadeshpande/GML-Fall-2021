@@ -71,8 +71,8 @@ def main(*args):
             par_dict = {
                         'device': args[0].device,
                         'adjacency_matrix': args[0].adjacency_mat,
-                        'node_feature_vectors': args[0].node_feature_vectors,
-                        'node_embeddings_graph': args[0].classifier_node_embeddings_graph,
+                        'node_embeddings_cc': args[0].classifier_node_embeddings_cc,
+                        'node_embeddings_cp': args[0].classifier_node_embeddings_cp,
                         
                         'data': data_object,
                         'model_filename': os.path.join(args[0].path_res_, 'link_pred_for_hpar_set_%d.pt'%(idx)),
@@ -82,17 +82,17 @@ def main(*args):
                         'ML_TASK': args[0].ML_TASK,
                         
                         'classifier_batch_size': args[0].classifier_batch_size,
-                        'classifier_use_language_embeddings': par['classifier_use_language_embeddings'],
-                        'classifier_use_graph_embeddings': par['classifier_use_graph_embeddings'],
+                        'classifier_use_cc': par['classifier_use_cc'],
+                        'classifier_use_cp': par['classifier_use_cp'],
                         
-                        'classifier_layers_lan': par['classifier_layers_lan'],
-                        'classifier_input_layer_size_lan': par['classifier_input_layer_size_lan'],
-                        'classifier_hidden_layer_size_lan': par['classifier_hidden_layer_size_lan'],
-                        'classifier_hidden_layer_dropout_lan': par['classifier_hidden_layer_dropout_lan'],
-                        'classifier_layers_graph': par['classifier_layers_graph'],
-                        'classifier_input_layer_size_graph': par['classifier_input_layer_size_graph'],
-                        'classifier_hidden_layer_size_graph': par['classifier_hidden_layer_size_graph'],
-                        'classifier_hidden_layer_dropout_graph': par['classifier_hidden_layer_dropout_graph'],
+                        'classifier_layers_cc': par['classifier_layers_cc'],
+                        'classifier_input_layer_size_cc': par['classifier_input_layer_size_cc'],
+                        'classifier_hidden_layer_size_cc': par['classifier_hidden_layer_size_cc'],
+                        'classifier_hidden_layer_dropout_cc': par['classifier_hidden_layer_dropout_cc'],
+                        'classifier_layers_cp': par['classifier_layers_cp'],
+                        'classifier_input_layer_size_cp': par['classifier_input_layer_size_cp'],
+                        'classifier_hidden_layer_size_cp': par['classifier_hidden_layer_size_cp'],
+                        'classifier_hidden_layer_dropout_cp': par['classifier_hidden_layer_dropout_cp'],
                         
                         #
                         'classifier_output_layer_size': args[0].classifier_output_layer_size,
@@ -108,9 +108,11 @@ def main(*args):
         results[idx] = {}
         results[idx]['results'] = t_init_.main(par_dict)
         #_ = par_dict.pop('device')
-        _ = par_dict.pop('data')
-        _ = par_dict.pop('node_feature_vectors')
-        _ = par_dict.pop('adjacency_matrix')
+        for key_ in ['data','adjacency_matrix', 'node_feature_vectors', 'node_embeddings_cc', 'node_embeddings_cp']:
+            try:
+                _ = par_dict.pop(key_)
+            except:
+                continue
         results[idx]['hyperparameters'] = par_dict
     
     # save tuning results
@@ -122,10 +124,7 @@ def main(*args):
     t_utils_.plot_train_val(result_best, args[0].path_res_)
     
     # plot embeddings
-    #t_utils_.embedding_visualization(embeddings = result_best['results']['node embeddings'], 
-    #                                 train = args[0].data_train_,
-    #                                 val = args[0].data_val_,
-    #                                 save_path = args[0].path_res_)
+    #t_utils_.embedding_visualization(read_path = args[0].path_data_, node2idx = args[0].chem2idx)
     
     # print out the prediction.txt file
     if args[0].ML_TASK == 'supervised_learning':
@@ -168,17 +167,18 @@ def get_hyperpar_set_list(*args):
                                    gnn_training_epochs = args[0].gnn_training_epochs)
     
     elif args[0].ML_TASK == 'supervised_learning':
-        hp_set_list = product_dict(classifier_use_language_embeddings = args[0].classifier_use_language_embeddings,
-                                   classifier_use_graph_embeddings = args[0].classifier_use_graph_embeddings,
+        hp_set_list = product_dict(classifier_use_cc = args[0].classifier_use_cc,
+                                   classifier_use_cp = args[0].classifier_use_cp,
                                
-                                   classifier_layers_lan = args[0].classifier_layers_lan,
-                                   classifier_input_layer_size_lan = args[0].classifier_input_layer_size_lan,
-                                   classifier_hidden_layer_size_lan = args[0].classifier_hidden_layer_size_lan,
-                                   classifier_hidden_layer_dropout_lan = args[0].classifier_hidden_layer_dropout_lan,
-                                   classifier_layers_graph = args[0].classifier_layers_graph,
-                                   classifier_input_layer_size_graph = args[0].classifier_input_layer_size_graph,
-                                   classifier_hidden_layer_size_graph = args[0].classifier_hidden_layer_size_graph,
-                                   classifier_hidden_layer_dropout_graph = args[0].classifier_hidden_layer_dropout_graph,
+                                   classifier_layers_cc = args[0].classifier_layers_cc,
+                                   classifier_input_layer_size_cc = args[0].classifier_input_layer_size_cc,
+                                   classifier_hidden_layer_size_cc = args[0].classifier_hidden_layer_size_cc,
+                                   classifier_hidden_layer_dropout_cc = args[0].classifier_hidden_layer_dropout_cc,
+                                   
+                                   classifier_layers_cp = args[0].classifier_layers_cp,
+                                   classifier_input_layer_size_cp = args[0].classifier_input_layer_size_cp,
+                                   classifier_hidden_layer_size_cp = args[0].classifier_hidden_layer_size_cp,
+                                   classifier_hidden_layer_dropout_cp = args[0].classifier_hidden_layer_dropout_cp,
                                    
                                    classifier_lr_start = args[0].classifier_lr_start,
                                    classifier_lr_reduction = args[0].classifier_lr_reduction,
@@ -199,9 +199,9 @@ def get_torch_data_object(*args):
         torch_data = ModelData(data_dir,
                                task = args[0].ML_TASK,
                                batch_size = args[0].gnn_batch_size,
-                               filename_train = os.path.join(data_dir, 'train_GSage.csv'),
-                               filename_val = os.path.join(data_dir, 'val_GSage.csv'),
-                               filename_test = os.path.join(data_dir, 'val_GSage.csv'),
+                               filename_train = os.path.join(data_dir, 'train_GSage_cc.csv'),
+                               filename_val = os.path.join(data_dir, 'val_GSage_cc.csv'),
+                               filename_test = os.path.join(data_dir, 'val_GSage_cc.csv'),
                                node_feature_dim = args[0].node_feature_dim)
         
     elif args[0].ML_TASK == 'supervised_learning':
@@ -209,9 +209,9 @@ def get_torch_data_object(*args):
         torch_data = ModelData(data_dir,
                                task = args[0].ML_TASK,
                                batch_size = args[0].classifier_batch_size,
-                               filename_train = os.path.join(data_dir, 'train_.csv'),
-                               filename_val = os.path.join(data_dir, 'val_.csv'),
-                               filename_test = os.path.join(data_dir, 'test_.csv'),
+                               filename_train = os.path.join(data_dir, 'train_GSage_supervised.csv'),
+                               filename_val = os.path.join(data_dir, 'val_Gsage_supervised.csv'),
+                               filename_test = os.path.join(data_dir, 'val_Gsage_supervised.csv'),
                                node_feature_dim = args[0].node_feature_dim)
     
     

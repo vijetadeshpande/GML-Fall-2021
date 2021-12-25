@@ -12,6 +12,7 @@ import math
 import numpy as np
 from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
+from sklearn.cluster import KMeans
 import pandas as pd
 import pickle
 import os
@@ -203,9 +204,9 @@ def save_tuning_results(results, path_,
     # save node embeddings
     try:
         if isinstance(results_out['results']['node embeddings'], (list)):
-            pd.DataFrame(results_out['results']['node embeddings']).to_csv(os.path.join(path_, 'ProteinNodeEmbedding.csv'))
+            pd.DataFrame(results_out['results']['node embeddings']).to_csv(os.path.join(path_, 'DrugNodeEmbeddings.csv'))
         else:
-            pd.DataFrame(results_out['results']['node embeddings'].numpy().tolist()).to_csv(os.path.join(path_, 'ProteinNodeEmbedding.csv'))
+            pd.DataFrame(results_out['results']['node embeddings'].numpy().tolist()).to_csv(os.path.join(path_, 'DrugNodeEmbeddings.csv'))
     except:
         pass
     """
@@ -247,14 +248,14 @@ def plot_train_val(best_result: dict, save_path):
     df_.loc[:, 'Accuracy'] = accuracies
     
     # create footnote with all hyperparameter values
-    footnote = 'Hyperparameter values:'
-    for hpar in best_result['hyperparameters']:
-        if not hpar in ['device', 'learning rate reduction', 'learning rate reduction step', 'model filename', 'number of classes']:
-            val_ = best_result['hyperparameters'][hpar]
-            footnote += f'\n{hpar}: {val_}'
+    footnote = ''#'Hyperparameter values:'
+    #for hpar in best_result['hyperparameters']:
+    #    if not hpar in ['device', 'learning rate reduction', 'learning rate reduction step', 'model filename', 'number of classes']:
+    #        val_ = best_result['hyperparameters'][hpar]
+    #        footnote += f'\n{hpar}: {val_}'
     
     # plot
-    filename_ = os.path.join(save_path, 'CrossEntropyLoss.png')
+    filename_ = os.path.join(save_path, 'CrossEntropyLoss_cc.png')
     plt.figure()
     plot_loss = sns.lineplot(data = df_,
                              x = 'Epoch',
@@ -265,7 +266,7 @@ def plot_train_val(best_result: dict, save_path):
     plt.savefig(filename_, bbox_inches="tight")
     
     #
-    filename_ = os.path.join(save_path, 'Accuracies.png')
+    filename_ = os.path.join(save_path, 'Accuracies_cc.png')
     plt.figure()
     plot_acc = sns.lineplot(data = df_,
                             x = 'Epoch',
@@ -277,39 +278,39 @@ def plot_train_val(best_result: dict, save_path):
     
     return
 
-def embedding_visualization(embeddings: dict, 
-                            train:str,
-                            val:str,
-                            save_path:str):
-    
+def embedding_visualization(read_path:str,
+                            save_path:str = None,
+                            node2idx = None):
     
     #
-    try:
-        data_train = pd.read_csv(train, sep = ' ', header = None)
-        data_val = pd.read_csv(val, sep = ' ', header = None)
-    except:
-        try:
-            data_train = pd.read_csv(os.path.join(save_path, '..', 'train.txt'), sep = ' ', header = None)
-            data_val = pd.read_csv(os.path.join(save_path, '..', 'val.txt'), sep = ' ', header = None)
-        except:
-            print('\nNO DATA FILE FOUND FOR embedding_visualization()')
-            return
+    save_path = os.path.join(read_path, 'results_')
     
-    # collect all the labeled examples
-    labeled = pd.concat([data_train, data_val])
-    labeled = pd.DataFrame(labeled.values, index = labeled.iloc[:, 0].values, columns = ['node', 'true_label'])
-    similar_labels = {'stock_market_related': [0, 2, 10, 19, 25], 
-                      'emotions': [1], 
-                      'disease_related': [3, 4, 5, 6, 7, 11, 12, 15, 17, 21, 22, 23, 24], 
-                      'marketing_related': [8, 13, 18, 20],  
-                      'security_related': [9, 14, 16]}
-    for row_ in labeled.index:
-        y_ = labeled.loc[row_, 'true_label']
-        for cat_ in similar_labels:
-            if y_ in similar_labels[cat_]:
-                labeled.loc[row_, 'category'] = cat_
-                break
-    labeled_x = labeled.iloc[:, 0].values.tolist()
+    # final embeddings
+    z = pd.read_csv(os.path.join(read_path, 'DrugNodeEmbeddings.csv')).iloc[:, 1:]
+    k_ = 4
+    z_clus = KMeans(k_).fit(z)
+    z['Category'] = z_clus.labels_
+    
+    # initial embeddings
+    filename_ = os.path.join(read_path, 'DrugNodeEmbedding.json')
+    with open(filename_, 'rb') as f:
+        e_dict = json.load(f)
+    
+    #
+    e = np.random.standard_normal((z.shape[0], 768))
+    for chem in e_dict:
+        idx = node2idx[chem]
+        e[idx, :] = e_dict[chem]
+    
+    e = pd.DataFrame(e)#pd.DataFrame(np.random.standard_normal((z.shape[0], z.shape[1]-1)))
+    e_clus = KMeans(k_).fit(e)
+    e['Category'] = e_clus.labels_
+    
+    #
+    labeled_x = z.index
+    embeddings = {}
+    embeddings['layer k'] = z
+    embeddings['layer 0'] = e
     
     #
     for layer in embeddings:
@@ -318,8 +319,8 @@ def embedding_visualization(embeddings: dict,
         layer_name = 'GNN_' + layer
         
         # slice out vectors of the labeled data and transform the data to 2-d
-        vec_ = pd.DataFrame(PCA(n_components = 2).fit_transform(embeddings[layer][labeled_x, :]), index = labeled_x, columns = ['x1', 'x2'])
-        vec_['Category'] = labeled.loc[labeled_x, 'category']
+        vec_ = pd.DataFrame(PCA(n_components = 2).fit_transform(embeddings[layer].iloc[:, :-1]), index = labeled_x, columns = ['x1', 'x2'])
+        vec_['Category'] = embeddings[layer].iloc[:, -1]
         
         #
         filename_ = os.path.join(save_path, 'PCA for %s embeddings.png'%(layer_name))
@@ -335,4 +336,5 @@ def embedding_visualization(embeddings: dict,
     
     return 
 
-
+#path_ = r'/Users/vijetadeshpande/Documents/GitHub/GML-Fall-2021/Project/Data'
+#embedding_visualization(path_)

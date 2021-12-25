@@ -148,23 +148,23 @@ def get_model(parameter_dict, task):
                      parameter_dict['gnn_aggregator'],
                      parameter_dict['gnn_neighborhood_sample_size'])
     elif task == 'supervised_learning':
-        model = NNCls(parameter_dict['classifier_layers_lan'],
-                      parameter_dict['classifier_input_layer_size_lan'],
-                      parameter_dict['classifier_input_layer_size_lan'],
-                      parameter_dict['classifier_hidden_layer_size_lan'],
+        model = NNCls(parameter_dict['classifier_layers_cc'],
+                      parameter_dict['classifier_input_layer_size_cc'],
+                      parameter_dict['classifier_input_layer_size_cc'],
+                      parameter_dict['classifier_hidden_layer_size_cc'],
                       #
-                      parameter_dict['classifier_layers_graph'],
-                      parameter_dict['classifier_input_layer_size_graph'],
-                      parameter_dict['classifier_input_layer_size_graph'],
-                      parameter_dict['classifier_hidden_layer_size_graph'],
+                      parameter_dict['classifier_layers_cp'],
+                      parameter_dict['classifier_input_layer_size_cp'],
+                      parameter_dict['classifier_input_layer_size_cp'],
+                      parameter_dict['classifier_hidden_layer_size_cp'],
                       #
                       parameter_dict['classifier_output_layer_size'],
-                      parameter_dict['classifier_hidden_layer_dropout_graph'],
-                      parameter_dict['node_feature_vectors'],
-                      parameter_dict['node_embeddings_graph'],
+                      parameter_dict['classifier_hidden_layer_dropout_cp'],
+                      parameter_dict['node_embeddings_cc'],
+                      parameter_dict['node_embeddings_cp'],
                       parameter_dict['device'],
-                      parameter_dict['classifier_use_language_embeddings'],
-                      parameter_dict['classifier_use_graph_embeddings'])
+                      parameter_dict['classifier_use_cc'],
+                      parameter_dict['classifier_use_cp'])
     
     #
     model = utils_.init_parameters(model)

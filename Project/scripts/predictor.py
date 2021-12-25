@@ -67,7 +67,8 @@ def main(*args, **kwargs):
     
     # load data
     try:
-        node_emb_graph = pd.read_csv(os.path.join(path_data_, 'node_embeddings_GSage.csv')).iloc[:, 2:]
+        z_cp = pd.read_csv(os.path.join(path_data_, 'z_cp.csv')).iloc[:, 1:]
+        z_cc = pd.read_csv(os.path.join(path_data_, 'z_cc.csv')).iloc[:, 1:]
     except:
         node_emb_graph = []
     
@@ -85,6 +86,7 @@ def main(*args, **kwargs):
     # set all arguments
     parser = argparse.ArgumentParser(description = 'COMP5800_Assignment_5_GraphSAGE')
     parser.add_argument('--adjacency_mat', default = adj_mat)
+    parser.add_argument('--chem2idx', default = node2idx)
     parser.add_argument('--node_feature_dim', default = 768)
     parser.add_argument('--node_feature_vectors', default = node_emb)
     parser.add_argument('--sample_set', default = sample_set)
@@ -107,39 +109,41 @@ def main(*args, **kwargs):
     parser.add_argument('--gnn_depth', default = depth)
     parser.add_argument('--gnn_input_layer_size', default = [768])
     parser.add_argument('--gnn_hidden_layer_size', default = [[256]])#[[32], [50], [64], [100], [128]])
-    parser.add_argument('--gnn_hidden_layer_dropout', default = [0])#[0, 0.01, 0.03, 0.05, 0.1])
+    parser.add_argument('--gnn_hidden_layer_dropout', default = [0, 0.01, 0.03, 0.05])#[0, 0.01, 0.03, 0.05, 0.1])
     parser.add_argument('--gnn_output_layer_size', default = [128])
     parser.add_argument('--gnn_neighborhood_sample_size', default = [[5]]) #[[5], [7], [10]])
     parser.add_argument('--gnn_aggregator', default = ['mean'])
-    parser.add_argument('--gnn_unsupervised_random_walk_length', default = [1])
-    parser.add_argument('--gnn_unsupervised_positive_sample_size', default = [3])
-    parser.add_argument('--gnn_unsupervised_negative_sample_size', default = [10])
-    parser.add_argument('--gnn_lr_start', default = [0.003, 0.001, 0.0009])#[0.0001, 0.001, 0.003, 0.005, 0.007, 0.009, 0.01, 0.03])
-    parser.add_argument('--gnn_lr_reduction', default = [0.95])
-    parser.add_argument('--gnn_lr_reduction_step', default = [15])
-    parser.add_argument('--gnn_training_epochs', default = [100])
+    parser.add_argument('--gnn_unsupervised_random_walk_length', default = [depth])
+    parser.add_argument('--gnn_unsupervised_positive_sample_size', default = [1])
+    parser.add_argument('--gnn_unsupervised_negative_sample_size', default = [5])
+    parser.add_argument('--gnn_lr_start', default = [0.001, 0.0001])#[0.0001, 0.001, 0.003, 0.005, 0.007, 0.009, 0.01, 0.03])
+    parser.add_argument('--gnn_lr_reduction', default = [0.9])
+    parser.add_argument('--gnn_lr_reduction_step', default = [10])
+    parser.add_argument('--gnn_training_epochs', default = [500])
     
     
     # Classifier for link classification task
-    parser.add_argument('--classifier_batch_size', default = 32)
-    parser.add_argument('--classifier_use_language_embeddings', default = [True])
-    parser.add_argument('--classifier_use_graph_embeddings', default = [False])
-    parser.add_argument('--classifier_layers_lan', default = [2])
-    parser.add_argument('--classifier_input_layer_size_lan', default = [128])
-    parser.add_argument('--classifier_hidden_layer_size_lan', default = [[64, 32]])#[[32], [50], [64], [100], [128]])
-    parser.add_argument('--classifier_hidden_layer_dropout_lan', default = [0.01])#[0, 0.01, 0.03, 0.05, 0.1])
+    parser.add_argument('--classifier_batch_size', default = 2048)
+    parser.add_argument('--classifier_use_cc', default = [True])
+    parser.add_argument('--classifier_use_cp', default = [True])
     
-    parser.add_argument('--classifier_layers_graph', default = [2])
-    parser.add_argument('--classifier_input_layer_size_graph', default = [128])
-    parser.add_argument('--classifier_hidden_layer_size_graph', default = [[64, 32]])#[[32], [50], [64], [100], [128]])
-    parser.add_argument('--classifier_hidden_layer_dropout_graph', default = [0.01])#[0, 0.01, 0.03, 0.05, 0.1])
+    parser.add_argument('--classifier_layers_cc', default = [0])
+    parser.add_argument('--classifier_input_layer_size_cc', default = [256])
+    parser.add_argument('--classifier_hidden_layer_size_cc', default = [[]])#[[32], [50], [64], [100], [128]])
+    parser.add_argument('--classifier_hidden_layer_dropout_cc', default = [0.01])#[0, 0.01, 0.03, 0.05, 0.1])
+    
+    parser.add_argument('--classifier_layers_cp', default = [2])
+    parser.add_argument('--classifier_input_layer_size_cp', default = [256])
+    parser.add_argument('--classifier_hidden_layer_size_cp', default = [[128, 64]])#[[32], [50], [64], [100], [128]])
+    parser.add_argument('--classifier_hidden_layer_dropout_cp', default = [0.01])#[0, 0.01, 0.03, 0.05, 0.1])
     
     parser.add_argument('--classifier_output_layer_size', default = 1)
     parser.add_argument('--classifier_lr_start', default = [0.0001])#[0.0001, 0.001, 0.003, 0.005, 0.007, 0.009, 0.01, 0.03])
-    parser.add_argument('--classifier_lr_reduction', default = [0.5])
-    parser.add_argument('--classifier_lr_reduction_step', default = [4])
+    parser.add_argument('--classifier_lr_reduction', default = [0.97])
+    parser.add_argument('--classifier_lr_reduction_step', default = [5])
     parser.add_argument('--classifier_training_epochs', default = [30])
-    parser.add_argument('--classifier_node_embeddings_graph', default = node_emb_graph)
+    parser.add_argument('--classifier_node_embeddings_cp', default = z_cp)
+    parser.add_argument('--classifier_node_embeddings_cc', default = z_cc)
     
     #nAdditinal parameters
     parser.add_argument('--device', default = torch.device("cuda:0" if torch.cuda.is_available() else "cpu"))
@@ -147,10 +151,11 @@ def main(*args, **kwargs):
     parser.add_argument('--experiments_repeat_number', default = 5)
     
     # initialize unsupervised learning of GSage
-    if not os.path.exists(os.path.join(path_data_, 'node_embeddings_GSage.csv')):
-        parser.add_argument('--ML_TASK', default = 'unsupervised_learning')
-    else:
-        parser.add_argument('--ML_TASK', default = 'supervised_learning')
+    #if not os.path.exists(os.path.join(path_data_, 'node_embeddings_GSage.csv')):
+    #    parser.add_argument('--ML_TASK', default = 'unsupervised_learning')
+    #else:
+    #    parser.add_argument('--ML_TASK', default = 'supervised_learning')
+    parser.add_argument('--ML_TASK', default = 'supervised_learning')
     args_, unknown_ = parser.parse_known_args()
     
     #
@@ -182,24 +187,23 @@ if __name__ == '__main__':
         # create adj_mat
         if True:#not os.path.exists(path_adj_):
             print('\nCreating adjacency matrix: ')
-            adj_mat, net, node2idx = pre_pro.to_adjacency(path_data_)
+            adj_mat, net, node2idx = pre_pro.to_adjacency(path_data_, 'cc')
             print('DONE')
         
         # create node embeddings
         if True:#not os.path.exists(path_feat_):
-            print('\nRandomly initializing node feature vectors: ')
-            node_emb = pre_pro.node_to_embeddings(adj_mat)
+            print('\nInitializing node feature vectors: ')
+            node_emb = pre_pro.node_to_embeddings(adj_mat, network = net, node_type = 'c')
             print('DONE')
         
         # create train, val and testing set
         if True:#not (os.path.exists(os.path.join(path_data_, 'train_.csv')) or os.path.exists(os.path.join(path_data_, 'val_.csv')) or os.path.exists(os.path.join(path_data_, 'train_GSage.csv')) or os.path.exists(os.path.join(path_data_, 'val_GSage.csv'))):
-            print('\nCreating training, validation and testing datasets: ')
-            depth = 1
+            print('\nCreating training, validation, testing and negative sampling datasets: ')
+            depth = 0
             sample_set, (data_train, data_val), neighbor_map = pre_pro.create_train_test_val_unsup(path_data_, adj_mat, net, node2idx, depth)
             print('DONE')
     
     
     best_res = main(adj_mat, net, node2idx, node_emb, sample_set, data_train, data_val, neighbor_map, depth)
-    
     
     print('done')

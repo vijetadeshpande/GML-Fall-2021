@@ -87,6 +87,10 @@ class RandWalk():
             idx = node2idx[node]
             reachable_idx = set_pos[idx, :]
             not_reachable_idx = set(nodes_idx) - set(reachable_idx)
+            
+            if len(list(not_reachable_idx)) == 0:
+                not_reachable_idx = set(random.choices(nodes_idx, k = 1))
+            
             sample_set[idx, 0:len(not_reachable_idx)] = list(not_reachable_idx)
             sample_set[idx, len(not_reachable_idx):] = random.choices(list(not_reachable_idx), k = (len(nodes) - len(list(not_reachable_idx))))
             
