@@ -84,3 +84,6 @@ class ModelData():
         self.batch_size = batch_size
         
         return
+
+
+
